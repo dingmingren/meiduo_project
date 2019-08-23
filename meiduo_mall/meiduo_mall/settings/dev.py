@@ -13,14 +13,16 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 import os
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
+# ../../../
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+print(BASE_DIR)
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.11/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '=r8k4uaek_p2ggh+5%bf=3qcj3&hnxc3bw#kmc2_bw*!%ywdz$'
+SECRET_KEY = 'hvri2cutz$=wkkg$_d9ufih+3=-!1aa^6v68(cnxpry1^7#fea'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -28,7 +30,7 @@ DEBUG = True
 ALLOWED_HOSTS = ['www.meiduo.site']
 
 
-# Application definition
+
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -37,8 +39,15 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+
+    # 注册子应用
     'apps.users',
-    'apps.contents'
+    'apps.contents',
+    'apps.verifications',
+    'apps.oauth',
+    'apps.areas',
+    'apps.goods',
 ]
 
 MIDDLEWARE = [
@@ -74,20 +83,6 @@ TEMPLATES = [
 WSGI_APPLICATION = 'meiduo_mall.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/1.11/ref/settings/#databases
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql', # 数据库引擎
-        'HOST': '127.0.0.1', # 数据库主机
-        'PORT': 3306, # 数据库端口
-        'USER': 'itheima', # 数据库用户名
-        'PASSWORD': '123456', # 数据库用户密码
-        'NAME': 'meiduo' # 数据库名字
-    },
-}
-
 # Password validation
 # https://docs.djangoproject.com/en/1.11/ref/settings/#auth-password-validators
 
@@ -120,13 +115,16 @@ USE_L10N = True
 
 USE_TZ = True
 
-print('1')
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
-
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+STATICFILES_DIRS = [os.path.join(BASE_DIR,'static')]
+
+
+# 配置 redis
 CACHES = {
+    # 注意点 默认 是 0号数据库
     "default": { # 默认
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:6379/0",
@@ -134,6 +132,7 @@ CACHES = {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
     },
+    # session 存储 1号数据库
     "session": { # session
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:6379/1",
@@ -141,9 +140,17 @@ CACHES = {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
     },
-    "verify_image_code": { #  # 保存图片验证码--2号库
+    # verify_image_code 存储 2号数据库
+    "verify_image_code": { # iamge_code
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:6379/2",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    },
+    "sms_code": {  # 保存短信验证码--3号库
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/3",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
@@ -152,6 +159,20 @@ CACHES = {
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "session"
 
+# 配置mysql
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql', # 数据库引擎
+        'HOST': '127.0.0.1', # 数据库主机
+        'PORT': 3306, # 数据库端口
+        'USER': 'itheima', # 数据库用户名
+        'PASSWORD': '123456', # 数据库用户密码
+        'NAME': 'meiduo' # 数据库名字
+    },
+}
+
+
+# 配置日志
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,  # 是否禁用已经存在的日志器
@@ -192,6 +213,28 @@ LOGGING = {
         },
     }
 }
+# 实例化日志对象
+# 单例设计模式 ---整个项目组 一个对象只有一份内存空间
 import logging
 logger = logging.getLogger('django')
+
+
+# 注册 User模型类 替换 系统自带的User模型类
+# AUTH_USER_MODEL = '子应用的名称.模型类的名字'
 AUTH_USER_MODEL = 'users.User'
+
+
+# 配置 登录路由
+LOGIN_URL = '/login/'
+
+# 指定自定义的用户认证后端
+AUTHENTICATION_BACKENDS = ['apps.users.utils.UsernameMobileAuthBackend']
+
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend' # 指定邮件后端
+EMAIL_HOST = 'smtp.163.com' # 发邮件主机
+EMAIL_PORT = 25 # 发邮件端口
+EMAIL_HOST_USER = 'hmmeiduo@163.com' # 授权的邮箱
+EMAIL_HOST_PASSWORD = 'hmmeiduo123' # 邮箱授权时获得的密码，非注册登录密码
+EMAIL_FROM = '美多商城<hmmeiduo@163.com>' # 发件人抬头
+EMAIL_ACTIVE_URL = 'http://www.meiduo.site:8000/emails/verification/' #激活地址
