@@ -20,4 +20,8 @@ urlpatterns = [
     url(r'^admin/', admin.site.urls),
     # url(r'register/$', views.RegisterView.as_view()),
     # url(r'^index/$',views.IndexView.as_view(),name='index'),
+
+    #商品列表页
+    url(r'list/(?P<category_id>\d+)/(?P<page_num>\d+)/', views.ListView.as_view()),
+
 ]

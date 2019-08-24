@@ -24,7 +24,9 @@ urlpatterns = [
     url(r'^', include('apps.verifications.urls')),
     #子应用oauth
     url(r'^', include('apps.oauth.urls')),
+    #地区子应用
     url(r'^', include('apps.areas.urls')),
+    #商品子应用
     url(r'^', include('apps.goods.urls')),
 
 ]

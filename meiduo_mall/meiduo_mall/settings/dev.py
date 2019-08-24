@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'apps.oauth',
     'apps.areas',
     'apps.goods',
+    # 'haystack', # 全文检索
 ]
 
 MIDDLEWARE = [
@@ -238,3 +239,7 @@ EMAIL_HOST_USER = 'hmmeiduo@163.com' # 授权的邮箱
 EMAIL_HOST_PASSWORD = 'hmmeiduo123' # 邮箱授权时获得的密码，非注册登录密码
 EMAIL_FROM = '美多商城<hmmeiduo@163.com>' # 发件人抬头
 EMAIL_ACTIVE_URL = 'http://www.meiduo.site:8000/emails/verification/' #激活地址
+
+# FDFS_BASE_URL = "http://192.168.218.129:8888/"
+FDFS_BASE_URL = 'http://image.meiduo.site:8888/'
+DEFAULT_FILE_STORAGE = 'utils.fastdfs.fastdfs_storage.FastDFSStorage'
