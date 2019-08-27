@@ -26,7 +26,7 @@ urlpatterns = [
     #登录页面路由
     url(r'login/$', views.LoginView.as_view(),name='login'),
     #退出功能
-    url(r'logout/$', views.LogoutView.as_view()),
+    url(r'logout/$', views.LogoutView.as_view(),name='logout'),
     # url(r'sms_codes/(?P<mobile>1[3-9]\d{9})/', views.SMSCodeView.as_view()),
     #用户中心路由
     url(r'info/$', views.UserInfoView.as_view(),name='info'),
@@ -35,7 +35,7 @@ urlpatterns = [
     #校验邮箱
     url(r'emails/verification/$', views.VerifyEmailView.as_view()),
     #收货地址
-    url(r'address/$', views.AddressView.as_view()),
+    url(r'address/$', views.AddressView.as_view(),name='address'),
     #增加收货地址
     url(r'addresses/create/$', views.CreateAddressView.as_view()),
     #修改地址
@@ -48,6 +48,8 @@ urlpatterns = [
     url(r'addresses/(?P<address_id>\d+)/title/$', views.UpdateTitleAddressView.as_view()),
     #修改密码
     url(r'password/$', views.ChangePasswordView.as_view(),name='password'),
+    #用户浏览记录
+    url(r'browse_histories/', views.UserBrowseHistory.as_view()),
 
 
 

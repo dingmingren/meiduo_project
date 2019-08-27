@@ -24,9 +24,21 @@ urlpatterns = [
     url(r'^', include('apps.verifications.urls')),
     #子应用oauth
     url(r'^', include('apps.oauth.urls')),
+
     #地区子应用
     url(r'^', include('apps.areas.urls')),
+
     #商品子应用
-    url(r'^', include('apps.goods.urls')),
+    url(r'^', include('apps.goods.urls',namespace='goods')),
+
+    #搜索
+    url(r'^search/', include('haystack.urls')),
+
+    #购物车
+    url(r'', include('apps.carts.urls',namespace='cart')),
+
+    #订单
+    url(r'', include('apps.orders.urls',namespace='orders')),
+
 
 ]

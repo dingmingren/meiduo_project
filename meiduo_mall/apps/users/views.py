@@ -12,11 +12,14 @@ from django_redis import get_redis_connection
 import re
 
 from apps.areas.models import Address
+from apps.carts.utils import merge_cart_cookie_to_redis
+from apps.goods.models import SKU
 from apps.users.models import User
 from celery_tasks.email.tasks import send_verify_email
 from meiduo_mall.settings.dev import logger
 from utils.response_code import RETCODE
-#04、邮箱添加和验证
+
+#01、邮箱添加和验证
 class EmailView(LoginRequiredMixin,View):
 
     def put(self,request):
@@ -52,7 +55,8 @@ class EmailView(LoginRequiredMixin,View):
         #返回响应数据给前端
 
         #注册成功开始发送邮件
-#03、用户中心
+
+#02、用户中心
 class UserInfoView(LoginRequiredMixin,View):
     """用户中心"""
 
@@ -66,7 +70,8 @@ class UserInfoView(LoginRequiredMixin,View):
             'email_active':request.user.email_active
         }
         return render(request, 'user_center_info.html',context=context)
-#01、用户登录后端实现
+
+#03、用户登录后端实现
 class  LoginView(View):
     def get(self,request):
 
@@ -111,11 +116,15 @@ class  LoginView(View):
         #首页用户名展示
             response = redirect(reverse('contents:index'))
 
+        #合并邮箱
+        response = merge_cart_cookie_to_redis(request=request, user=user, response=response)
+
         # 注册时用户名写入到cookie，有效期15天
         response.set_cookie('username', user.username, max_age=3600 * 24 * 15)
 
         return response
-#注册页面
+
+#04、注册页面
 class  RegisterView(View):
 
     def get(self,request):
@@ -158,12 +167,14 @@ class  RegisterView(View):
             return render(request,'register.html',{'register_errmsg':'注册失败'})
         login(request,user)
         return redirect(reverse('contents:index'))
-#账号验证
+
+#05、账号验证
 class UsernameCountView(View):
     def get(self,request,username):
         count = User.objects.filter(username=username).count()
         return http.JsonResponse({'code':RETCODE.OK,'errmsg': 'OK', 'count': count})
-#手机号验证
+
+#06、手机号验证
 class MobileCountView(View):
     """判断手机号是否重复注册"""
 
@@ -232,7 +243,8 @@ class MobileCountView(View):
         # print('当前验证码是',sms_cod)
         #
         # return http.JsonResponse({'code':'0','errmsg':'发送短信成功'})
-#02、退出登陆的实现
+
+#07、退出登陆的实现
 class LogoutView(View):
     """退出登录"""
     def get(self, request):
@@ -246,6 +258,7 @@ class LogoutView(View):
 
         return response
 
+#08、邮件校验
 class VerifyEmailView(LoginRequiredMixin,View):
     def get(self,request):
         #1.接收参数
@@ -263,7 +276,7 @@ class VerifyEmailView(LoginRequiredMixin,View):
         user.save()
         return redirect(reverse('users:info'))
 
-#04、收货地址
+#09、收货地址
 class AddressView(LoginRequiredMixin, View):
     """用户收货地址"""
 
@@ -295,7 +308,8 @@ class AddressView(LoginRequiredMixin, View):
             'addresses': address_dict_list,
         }
         return render(request, 'user_center_site.html',context=context)
-#05、增加收货地址
+
+#10、增加收货地址
 class CreateAddressView(LoginRequiredMixin, View):
     def post(self, request):
     #1、接收参数
@@ -358,7 +372,8 @@ class CreateAddressView(LoginRequiredMixin, View):
         }
 
         return http.JsonResponse({'code': RETCODE.OK, 'errmsg': '新增地址成功', 'address': address_dict})
-#06、修改收货地址
+
+#11、修改收货地址
 class UpdateDestroyAddressView(LoginRequiredMixin, View):
 
     def put(self,request,address_id):
@@ -427,7 +442,8 @@ class UpdateDestroyAddressView(LoginRequiredMixin, View):
             return http.JsonResponse({'code': RETCODE.DBERR, 'errmsg': '删除地址失败'})
         # 响应删除地址结果
         return http.JsonResponse({'code': RETCODE.OK, 'errmsg': '删除地址成功'})
-#07、设置默认地址
+
+#12、设置默认地址
 class DefaultAddressView(LoginRequiredMixin,View):
     def put(self,request,address_id):
         try:
@@ -443,7 +459,8 @@ class DefaultAddressView(LoginRequiredMixin,View):
 
             # 响应设置默认地址结果
         return http.JsonResponse({'code': RETCODE.OK, 'errmsg': '设置默认地址成功'})
-#08、修改地址标题
+
+#13、修改地址标题
 class UpdateTitleAddressView(LoginRequiredMixin,View):
     def put(self,request,address_id):
         json_dict = json.loads(request.body.decode())
@@ -461,7 +478,8 @@ class UpdateTitleAddressView(LoginRequiredMixin,View):
 
             # 4.响应删除地址结果
         return http.JsonResponse({'code': RETCODE.OK, 'errmsg': '设置地址标题成功'})
-#09、修改密码
+
+#14、修改密码
 class ChangePasswordView(LoginRequiredMixin, View):
     def get(self,request):
         #展示修改密码界面
@@ -494,3 +512,55 @@ class ChangePasswordView(LoginRequiredMixin, View):
 
         # # 响应密码修改结果：重定向到登录界面
         return response
+
+#15、浏览记录
+class UserBrowseHistory(LoginRequiredMixin, View):
+    #保存用户浏览记录
+    def post(self,request):
+        #1、接收参数
+        sku_dict = json.loads(request.body.decode())
+        sku_id = sku_dict.get('sku_id')
+
+        #2、根据sku_id查询商品
+        try:
+            sku = SKU.objects.get(id=sku_id)
+
+        except Exception as e:
+            return http.HttpResponseForbidden('商品不存在')
+
+        #如果有商品，则保存到redis
+        #3、链接数据库
+        history_redis_client = get_redis_connection('history')
+        history_key = 'history_%s' % request.user.id
+        #使用管道
+        p1 = history_redis_client.pipeline()
+
+        #4、去重
+        p1.lrem(history_key,0,sku_id)
+        #5、存储
+        p1.lpush(history_key,sku_id)
+        #6、截取
+        p1.ltrim(history_key,0,4)
+        p1.execute()
+
+        #响应结果
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK'})
+
+    #获取用户浏览记录
+    def get(self,request):
+        #获取redis数据库存储的sku_id信息
+        redis_conn = get_redis_connection('history')
+        sku_ids = redis_conn.lrange('history_%s' % request.user.id,0,-1)
+
+        #根据sku_ids列表数据，chacun出商品sku信息
+        skus = []
+        for sku_id in sku_ids:
+            sku = SKU.objects.get(id=sku_id)
+            skus.append({
+                'id' :sku.id,
+                'name':sku.name,
+                'default_image_url': sku.default_image.url,
+                'price': sku.price
+            })
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK', 'skus': skus})
+
